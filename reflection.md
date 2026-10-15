@@ -22,12 +22,11 @@
         - Pet class does CRUD operations with Task class. Both of the classes have a name and description attribute. Some other attributes of the Task class is priority and frequency. The `frequency` attribute tells the application how often a task repeats (none, daily, weekly, or monthly), so that when a recurring task is completed, the scheduler can create its next occurrence. A task's pets are not stored on the task itself; instead, each pet keeps a list of its tasks, so a shared task (like a park trip) is just added to more than one pet.
 
 
-I included class Owner, Scheduler, Pet, Tasks. The owner's responsibility is to add pets, edit them, delete them, add, delete, and edit tasks for each of those pets. Pet class should be able to add, edit, and delete tasks. Scheduler should retreive, organize and manage tasks amongst multiple Pets. Task class is used to provide a data structure to set up the task to do regarding pets.
-
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+    - A method for time blocking existed for both Pet and Scheduler. I removed the time blocking method in the Pet class for simplicity as that method was not needed.
 
 ---
 
