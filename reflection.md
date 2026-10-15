@@ -5,7 +5,24 @@
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+
+    - Owner owns pets, each pet owns its tasks, and the Scheduler reads everything through the Owner and produces a DailyPlan [[1]](#1).
+    - A shared task like a park trip is the same Task added to several pets, rather than storing pet IDs on the task [[1]](#1).
+    - Scheduling logic sits in one place, the Scheduler, instead of being spread across Pet and Owner [[1]](#1).
+    - Scheduler has a 1 to 1 relationship with the Owner class which has a 1 to many relationship with the Pet class.
+    - Has Pet and Task classes that have a many to many relationship with each other. A person can take 2 of their dogs for a walk at the same time. 
+
 - What classes did you include, and what responsibilities did you assign to each?
+
+    - There are essentially 4 core classes (Owner, Pet, Task, Scheduler), plus a DailyPlan result class and two enumerations (Priority and Frequency).
+        - Scheduler class sorts, filters and schedules the tasks across 0 to several pets.  "DailyPlan is a small data class that holds the result of scheduling (tasks scheduled and skipped, which pets each task is for, and the reasoning) and can format itself as readable text." The Scheduler  class creates instances of DailyPlan class. It gets tasks, filters, sorts them, gets the respective pets of the tasks, and schedules the tasks essentially.
+        
+        - Owner class which adds, gets, edits,and removes pets. It also filters pets by name, type such as if cat or a dog, age, and ailments. It also persists the data.
+
+        - Pet class does CRUD operations with Task class. Both of the classes have a name and description attribute. Some other attributes of the Task class is priority and frequency. The `frequency` attribute tells the application how often a task repeats (none, daily, weekly, or monthly), so that when a recurring task is completed, the scheduler can create its next occurrence. A task's pets are not stored on the task itself; instead, each pet keeps a list of its tasks, so a shared task (like a park trip) is just added to more than one pet.
+
+
+I included class Owner, Scheduler, Pet, Tasks. The owner's responsibility is to add pets, edit them, delete them, add, delete, and edit tasks for each of those pets. Pet class should be able to add, edit, and delete tasks. Scheduler should retreive, organize and manage tasks amongst multiple Pets. Task class is used to provide a data structure to set up the task to do regarding pets.
 
 **b. Design changes**
 
@@ -69,3 +86,9 @@
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+
+
+## 6. Citations and Extra Notes
+
+<a id="1">[1]</a>: Anthropic. Claude Pro. https://claude.ai. 
+    
