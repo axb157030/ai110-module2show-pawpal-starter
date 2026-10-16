@@ -2,6 +2,20 @@
 
 You are building **PawPal+**, a Streamlit app that helps a pet owner plan care tasks for their pet.
 
+## Implementation Summary
+
+I built **PawPal+**, an app where an owner adds care tasks to each of their pets (for example, a morning walk for Sally the poodle and feeding Stacy the parrot) and gets a daily plan that explains its choices.
+
+**How the classes work together:**
+
+- **Task**: one care activity: name, duration, priority, optional due date and fixed start time, completion status, and how often it repeats (daily, weekly, monthly).
+- **Pet**: a pet's details (name, type, age, ailments) and its list of tasks. Two pets can share the same task, like one walk for two dogs; it is stored once and scheduled once.
+- **Owner**: the owner's available hours and their pets. `get_all_tasks()` gathers every pet's tasks into one list, and the owner can save and load everything as JSON.
+- **Scheduler**: the "brain." It reads tasks only through the Owner, so it always works across all pets. It scores each task by **weighted priority** (higher priority, closer due date, and not yet completed means a higher score). It can sort and filter tasks, detect overlapping tasks, find the next free time slot, and create the next copy of a completed repeating task.
+- **DailyPlan**: the result of `Scheduler.generate_daily_plan()`. It lists scheduled tasks in time order, skipped tasks, which pets each task is for, and the reason for every decision.
+
+**Flow:** Owner → pets → tasks → Scheduler → DailyPlan → printed in `main.py` or shown in the Streamlit app.
+
 ## Scenario
 
 A busy pet owner needs help staying consistent with pet care. They want an assistant that can:

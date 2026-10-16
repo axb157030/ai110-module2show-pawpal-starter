@@ -31,6 +31,7 @@ classDiagram
         +edit(**fields) None
         +end_time() datetime
         +overlaps(other: Task) bool
+        +overlap_minutes(other: Task) int
         +next_occurrence() Task
         +to_dict() dict
         +from_dict(data: dict)$ Task
@@ -46,11 +47,12 @@ classDiagram
         +list~Task~ tasks
         +add_task(task: Task) None
         +list_tasks() list~Task~
+        +get_task(task_id: str) Task
         +edit_task(task_id: str, **fields) None
         +remove_task(task_id: str) None
         +edit(**fields) None
         +to_dict() dict
-        +from_dict(data: dict)$ Pet
+        +from_dict(data: dict, tasks_by_id: dict)$ Pet
     }
 
     class Owner {
@@ -64,6 +66,8 @@ classDiagram
         +remove_pet(pet_id: str) None
         +get_pet(pet_id: str) Pet
         +filter_pets(name, pet_type, age, ailment) list~Pet~
+        +get_all_tasks() list~Task~
+        +pets_for_task(task: Task) list~Pet~
         +to_dict() dict
         +from_dict(data: dict)$ Owner
         +save_json(path: str) None
@@ -73,13 +77,12 @@ classDiagram
     class Scheduler {
         +Owner owner
         +get_all_tasks() list~Task~
-        +pets_for_task(task: Task) list~Pet~
-        +weighted_priority(task: Task) float
-        +sort_by_weighted_priority(tasks: list~Task~) list~Task~
+        +weighted_priority(task: Task, today: date) float
+        +sort_by_weighted_priority(tasks: list~Task~, today: date) list~Task~
         +sort_by_due_date(tasks: list~Task~) list~Task~
-        +filter_tasks(name, description, is_completed, priority, due_date, min_weighted_priority) list~Task~
-        +detect_conflicts() list~tuple~
-        +time_block(tasks: list~Task~) list~Task~
+        +filter_tasks(name, description, is_completed, priority, due_date, min_weighted_priority, tasks) list~Task~
+        +detect_conflicts(tasks: list~Task~) list~tuple~
+        +time_block(tasks: list~Task~, day: date) list~Task~
         +next_available_slot(duration_minutes: int, after: datetime) datetime
         +handle_recurring_tasks() list~Task~
         +generate_daily_plan(day: date) DailyPlan
@@ -100,6 +103,6 @@ classDiagram
     Task --> Priority
     Task --> Frequency
     Scheduler "1" --> "1" Owner : reads availability/preferences
-    Scheduler "1" ..> "0..*" Pet : manages tasks across (via owner.pets)
+    Scheduler "1" ..> "0..*" Pet : manages tasks across (via owner.get_all_tasks)
     Scheduler ..> DailyPlan : creates
     DailyPlan "1" o-- "0..*" Task : schedules

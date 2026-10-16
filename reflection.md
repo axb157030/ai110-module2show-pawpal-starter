@@ -51,12 +51,64 @@
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 - What kinds of prompts or questions were most helpful?
 
+- I used AI tools to expedite development and design. When designing I brainstormed and I made a pawpal.md file to place much of my notes in. I incremented and incremented. I also wrote my concerns of whether this should be added or not such as a task that may involve several pets. It suggestion on how to improve such as the UML diagram and I agreed with it such as removing a time blocking method for the Pet class.  and told it to proceed with the changes I told it to make the UML diagram from that. This is a prompt I provided to it.
+
+```bash
+I am designing a pet care app. Please create a Mermaid.js class diagram based on information I provided in pawpal.md.
+```
+
+- I would ask questions to the agent to understand its design and code and requested it to comment its code. 
+
+```bash
+DailyPlan class? When user schedules should they see the pet the task applies to?
+
+DailyPlan.pet_names_by_task i suppose this dictionary is from Scheduler.pets_for_task(task) but for every task
+
+Should it be changed to reduce coupling and increase cohesion?
+
+Do several DailyPlans belong to a Scheduler. Does Scheduler class have a 0 to many relationship with DailyPlan. I want to make the app do its purpose
+
+The frequency attribute is used to let the application know the number of pets it belongs to?
+```
+
+
+
+
+
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
 - How did you evaluate or verify what the AI suggested?
 
 ---
+
+    - When the main.py file was running, the scheduler when return the daily plan would not show the pet type in addition to pet name and the task. I want to see the scheduled tasks along with the pet name and pet type such as whether it is a dog, hamster, or cat etc. Showing the task and corresponding pet name and type were like what the README.md file from the repository that I forked from to make this application showed. 
+    - I evaluated the classes and their methods by running the main.py method that populated an Owner and Scheduler object, made several pets which were assigned a list of several Task objects.
+
+    - There was another moment 
+
+```bash
+pet_names_by_task should I change to pet_names__and_type_by_task. I want to give what type of pet it is like is it a Dog, Cat, Golden Retreiver, texudo cat etcx like 
+
+<pasted_content id="5cdf">
+# e.g.:
+# Daily plan for Biscuit (Golden Retriever):
+#   08:00 — Morning walk (30 min) [priority: high]
+#   09:00 — Feeding (10 min) [priority: high]
+#   ...
+</pasted_content id="5cdf">
+
+ in README.md dont change any code yet. Which is better. I am afraid it may violate single responsibility principle
+```
+**Output** I wanted when checking the daily schedule. What I was looking for were values like this Rex (dog), Kiwi (parrot) instead of Rex, Kiwi
+
+```bash
+=== Today's Schedule ===                                                       
+Daily plan for 2026-10-15 (150 min scheduled):
+  07:00 — Morning walk (90 min) [priority: low] — Biscuit (dog), Rex (dog)
+  08:30 — Fill bowl of pure water (15 min) [priority: high] — Biscuit (dog), Rex (dog), Kiwi (parrot)
+  10:00 — Vet checkup (45 min) [priority: high] — Kiwi (parrot)
+```
 
 ## 4. Testing and Verification
 
