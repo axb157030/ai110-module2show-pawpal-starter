@@ -107,9 +107,9 @@ tests\test_pawpal.py ................................................... [ 98%]
 ============================= 52 passed in 0.11s ==============================
 ```
 
-**Confidence Level: ⭐⭐⭐⭐ (4/5)**
+**Confidence Level: (4/5)**
 
-All 52 tests pass, covering the core scheduling behaviors, multi-pet cases, and invalid input. One star is held back because the Streamlit UI is checked by hand rather than by automated tests, and the scheduler has known simplifications (the owner has the same available hours every day, and clashing fixed tasks are skipped rather than rescheduled).
+All 52 tests pass, covering the core scheduling behaviors, multi-pet cases, and invalid input. One star is held back. To expedite development AI was used and made much black code. Also the Streamlit UI was only tested manually. 
 
 
 
@@ -119,16 +119,20 @@ All 52 tests pass, covering the core scheduling behaviors, multi-pet cases, and 
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Task sorting |sort_by_weighted_priority | Sort by a value calculated from task  priority, duration and its completion status. |
+| Task sorting |sort_by_due_date | Sort by task due date. If their is a tie, it will sorted by task weighted priority. |
+
+| Filtering | filter_pets | Filters tasks by name, pet type, age, and ailments. |
+| Filtering | filter_tasks| Filters tasks by Task name, description, completion status, priority, task due date, weighted priority task has to be at no less of, and pet name |
+| Conflict handling | detect_conflict | for tasks that are not complete and have their start dates set, if a task that starts at X time and has a duration of X2 but if X time plus X2 duration is a time that is over a start date of another task, then those 2 tasks are added to a list, which is returned|
+| Recurring tasks | handle_recurring_tasks | "every completed repeating task has its next occurrence created." From Claude Free version. |
 
 ## 📸 Demo Walkthrough
 
 Describe your app in numbered steps so a reader can follow along without watching a video:
 
-1. <!-- Describe this step -->
+
+1. Add a pet <img src="./assets/add_pet_1.png" alt="UI showing adding a white cat"/>
 2. <!-- Describe this step -->
 3. <!-- Describe this step -->
 4. <!-- Describe this step -->
