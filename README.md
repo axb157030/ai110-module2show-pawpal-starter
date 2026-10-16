@@ -70,19 +70,46 @@ Paste a sample of your app's CLI or Streamlit output here so a reader can see wh
 
 ## 🧪 Testing PawPal+
 
+Run the test suite from the project folder (with the virtual environment activated):
+
 ```bash
-# Run the full test suite:
-pytest
-
-# Run with coverage:
-pytest --cov
+python -m pytest
 ```
 
-Sample test output:
+Add `-v` to see the name of every test. All tests use fixed dates, so they give the same result on any day.
+
+**What the tests cover** (`tests/test_pawpal.py`, 52 tests):
+
+- **Basics:** marking a task complete changes its status; adding a task to a pet increases its task count.
+- **Sorting:** tasks added out of order come back in time order by due date (a fixed task's start time counts as its deadline); weighted-priority ties go to the earlier due date, then alphabetically.
+- **Filtering:** by completion status, by pet name (partial, ignores capitals), and both combined.
+- **Conflicts:** overlapping tasks of different pets are detected with the overlap in minutes (cat bath 16:15–16:45 vs. parrot feeding 16:30); tasks with the same due date or back-to-back times are *not* conflicts; the daily plan keeps the higher-ranked task and explains why the other was skipped.
+- **Shared tasks:** one task for two pets is listed, scheduled, and recurred once, and never conflicts with itself.
+- **Recurring tasks:** completing a daily task creates the next one for today + 1 day (weekly: + 7 days), including late tasks and month ends (Oct 31 → Nov 1); unticking takes the copy back, and repeated ticking never piles up copies.
+- **Duplicates:** the same pet (name + species) or the same task at the same time can't be added twice, and an edit that would create one changes nothing.
+- **Empty data:** an owner with no pets or pets with no tasks give empty results, not errors.
+- **Invalid input:** wrong types (a number as a name, text as a duration, `True` as a frequency) and bad values (blank names, 0-minute tasks, start time after end time) are rejected with a clear error.
+
+Output of a successful run:
 
 ```
-# Paste your pytest output here
+============================= test session starts =============================
+platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.7.0
+rootdir: C:\Users\amine\Documents\codepath-training\AI\projects\ai110-module2show-pawpal-starter
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.15.1
+collected 52 items
+
+tests\test_pawpal.py ................................................... [ 98%]
+.                                                                        [100%]
+
+============================= 52 passed in 0.11s ==============================
 ```
+
+**Confidence Level: ⭐⭐⭐⭐ (4/5)**
+
+All 52 tests pass, covering the core scheduling behaviors, multi-pet cases, and invalid input. One star is held back because the Streamlit UI is checked by hand rather than by automated tests, and the scheduler has known simplifications (the owner has the same available hours every day, and clashing fixed tasks are skipped rather than rescheduled).
 
 
 
