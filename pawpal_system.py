@@ -27,6 +27,11 @@ def _add_months(dt: datetime, months: int) -> datetime:
     return dt.replace(year=year, month=month, day=day)
 
 
+def _when(task) -> datetime:
+    """When a task happens, for ordering: its start time, else its due date, else the earliest time."""
+    return task.start_time or task.due_date or datetime.min
+
+
 def _parse_datetime(value: str | None) -> datetime | None:
     """Turn an ISO datetime string from JSON back into a datetime (None stays None)."""
     return datetime.fromisoformat(value) if value else None
@@ -166,25 +171,48 @@ class Task:
         shared = min(self.end_time(), other.end_time()) - max(self.start_time, other.start_time)
         return max(0, int(shared.total_seconds() // 60))
 
-    def next_occurrence(self) -> Task | None:
+    def is_duplicate_of(self, other: Task) -> bool:
+        """Whether `other` is a different task with the same name, at the same time.
+
+        Names are compared ignoring capitals and extra spaces. "Same time" means the same
+        start_time for fixed tasks, or the same due day for flexible ones. So "Feeding" at
+        08:00 and at 18:00 are NOT duplicates, and neither is tomorrow's copy of a daily task.
+        """
+        if self.task_id == other.task_id:
+            return False
+        if self.name.strip().casefold() != other.name.strip().casefold():
+            return False
+        if self.start_time is not None or other.start_time is not None:
+            return self.start_time == other.start_time
+        own_day = self.due_date.date() if self.due_date else None
+        other_day = other.due_date.date() if other.due_date else None
+        return own_day == other_day
+
+    def next_occurrence(self, today: date | None = None) -> Task | None:
         """The next instance of a repeating task: same details, not completed, new id.
 
-        Its due_date and start_time move forward by one day, week, or month. A monthly
-        task on the 31st lands on the last day of shorter months.
+        Counted from `today` (the day it was completed), keeping the same time of day:
+        daily -> today + 1 day, weekly -> today + 7 days, monthly -> same day next month
+        (the 31st lands on the last day of shorter months). So a daily task finished late
+        comes back tomorrow, not on an already-past date.
+        `today` defaults to the real date; pass a fixed date for repeatable tests.
         Returns None if frequency is NONE. Does not add the copy to any pet.
         """
         if self.frequency == Frequency.NONE:
             return None
+        today = today or date.today()
 
         def shift(dt: datetime | None) -> datetime | None:
-            """Move a datetime forward by one repeat period (None stays None)."""
+            """Return `today` at dt's time of day, moved forward one repeat period (None stays None)."""
             if dt is None:
                 return None
+            # datetime.combine joins a date and a time: e.g. today + 08:00 -> today at 08:00.
+            base = datetime.combine(today, dt.time())
             if self.frequency == Frequency.DAILY:
-                return dt + timedelta(days=1)
+                return base + timedelta(days=1)  # timedelta handles month/year ends (Oct 31 -> Nov 1)
             if self.frequency == Frequency.WEEKLY:
-                return dt + timedelta(weeks=1)
-            return _add_months(dt, 1)
+                return base + timedelta(weeks=1)
+            return _add_months(base, 1)  # timedelta has no "months", since months differ in length
 
         return replace(
             self,
@@ -250,10 +278,19 @@ class Pet:
         """Add a task to this pet (the same Task can be added to several pets).
 
         Adding a task the pet already has does nothing, so it is never listed twice.
+        Raises ValueError if the pet already has a duplicate (see Task.is_duplicate_of).
         """
         _check_type(task, Task, "task")
-        if all(t.task_id != task.task_id for t in self.tasks):
-            self.tasks.append(task)
+        if self.get_task(task.task_id) is not None:
+            return
+        duplicate = self.find_duplicate_task(task)
+        if duplicate is not None:
+            raise ValueError(f"{self.name} already has '{duplicate.name}' at that time")
+        self.tasks.append(task)
+
+    def find_duplicate_task(self, task: Task) -> Task | None:
+        """Return this pet's task that duplicates `task` (same name, same time), or None."""
+        return next((t for t in self.tasks if t.is_duplicate_of(task)), None)
 
     def list_tasks(self) -> list[Task]:
         """Return this pet's tasks."""
@@ -264,10 +301,19 @@ class Pet:
         return next((t for t in self.tasks if t.task_id == task_id), None)
 
     def edit_task(self, task_id: str, **fields) -> None:
-        """Update one of this pet's tasks by id."""
+        """Update one of this pet's tasks by id.
+
+        Raises ValueError (and changes nothing) if the edit would make it a duplicate of
+        another of this pet's tasks.
+        """
         task = self.get_task(task_id)
         if task is None:
             raise KeyError(f"{self.name} has no task with id {task_id}")
+        preview = replace(task)  # a copy, so the duplicate check happens before anything changes
+        preview.edit(**fields)
+        duplicate = self.find_duplicate_task(preview)
+        if duplicate is not None:
+            raise ValueError(f"{self.name} already has '{duplicate.name}' at that time")
         task.edit(**fields)
 
     def remove_task(self, task_id: str) -> None:
@@ -287,6 +333,14 @@ class Pet:
         validated = replace(self, **fields)  # runs __post_init__ on the new values
         for key in fields:
             setattr(self, key, getattr(validated, key))
+
+    def is_duplicate_of(self, other: Pet) -> bool:
+        """Whether `other` is a different pet with the same name and species (ignoring capitals)."""
+        return (
+            self.pet_id != other.pet_id
+            and self.name.strip().casefold() == other.name.strip().casefold()
+            and self.pet_type.strip().casefold() == other.pet_type.strip().casefold()
+        )
 
     def to_dict(self) -> dict:
         """Convert this pet to a JSON-friendly dict. Tasks are stored by id so shared tasks stay shared."""
@@ -343,16 +397,35 @@ class Owner:
         _check_list_of(self.pets, Pet, "pets")
 
     def add_pet(self, pet: Pet) -> None:
-        """Add a pet to this owner. Adding the same pet twice does nothing."""
+        """Add a pet to this owner. Adding the same pet twice does nothing.
+
+        Raises ValueError if the owner already has a pet with the same name and species.
+        """
         _check_type(pet, Pet, "pet")
-        if self.get_pet(pet.pet_id) is None:
-            self.pets.append(pet)
+        if self.get_pet(pet.pet_id) is not None:
+            return
+        duplicate = self.find_duplicate_pet(pet)
+        if duplicate is not None:
+            raise ValueError(f"you already have a {duplicate.pet_type} named {duplicate.name}")
+        self.pets.append(pet)
+
+    def find_duplicate_pet(self, pet: Pet) -> Pet | None:
+        """Return the owner's pet with the same name and species as `pet`, or None."""
+        return next((p for p in self.pets if p.is_duplicate_of(pet)), None)
 
     def edit_pet(self, pet_id: str, **fields) -> None:
-        """Update one of this owner's pets by id."""
+        """Update one of this owner's pets by id.
+
+        Raises ValueError (and changes nothing) if the edit would duplicate another pet.
+        """
         pet = self.get_pet(pet_id)
         if pet is None:
             raise KeyError(f"No pet with id {pet_id}")
+        preview = replace(pet)  # a copy, so the duplicate check happens before anything changes
+        preview.edit(**fields)
+        duplicate = self.find_duplicate_pet(preview)
+        if duplicate is not None:
+            raise ValueError(f"you already have a {duplicate.pet_type} named {duplicate.name}")
         pet.edit(**fields)
 
     def remove_pet(self, pet_id: str) -> None:
@@ -513,6 +586,12 @@ class Scheduler:
                 + 10 if due today or overdue, or + 5 if due within 3 days.
         Completed tasks always score 0. Tasks with no due date get no bonus.
         `today` defaults to the real date; pass a fixed date to get repeatable results in tests.
+
+        Ties are common: there are only a few possible scores, so two tasks with the same
+        priority and the same due-date bonus score the same. The bonus is a band, not an
+        exact countdown: due in 1 day and due in 3 days both get +5, and every task with no
+        due date gets +0. sort_by_weighted_priority() breaks these ties by the earlier due
+        date first, then alphabetically.
         """
         if task.is_completed:
             return 0.0
@@ -531,31 +610,49 @@ class Scheduler:
     ) -> list[Task]:
         """Most urgent first, by weighted_priority(). Ties: earlier due date, then name A-Z.
 
+        A tie means the same priority AND the same due-date bonus (see weighted_priority).
+        Because the bonus is a band, tied tasks can still have different due dates, so the
+        tie goes to the one due EARLIER: an overdue task beats one due today, and a task due
+        tomorrow beats one due in 3 days. Tasks with no due date come after dated ones.
+        Only if the due dates are also identical is the order alphabetical (ignoring capitals),
+        e.g. "Bath" before "Wing trim" when both are high priority and due at 18:00 today.
+
+        In the daily plan, ranking first decides who wins a clash between fixed tasks and
+        who gets the earlier free slot among flexible ones. The order is always the same
+        for the same tasks (deterministic).
+
         Uses all tasks if `tasks` is None. Returns a new list; the input is not changed.
         """
         tasks = self.get_all_tasks() if tasks is None else tasks
         return sorted(
             tasks,
             key=lambda t: (
-                -self.weighted_priority(t, today),
-                t.due_date or datetime.max,
-                t.name.lower(),
+                -self.weighted_priority(t, today),  # highest score first
+                t.due_date or datetime.max,           # same score: earlier due date first (undated last)
+                t.name.casefold(),                    # same due date too: alphabetical
             ),
         )
-
+    # The sort_by_time() method
     def sort_by_due_date(self, tasks: list[Task] | None = None) -> list[Task]:
-        """Earliest due date first; tasks with no due date go last. Ties: higher priority first.
+        """Earliest deadline first; tasks with no date at all go last. Ties: higher priority first.
 
-        Uses all tasks if `tasks` is None. Returns a new list; the input is not changed.
+        A task's deadline is its due_date; a fixed task with only a start_time is due when it
+        starts (a 10:00 vet visit is "due" at 10:00). So tasks added in any order come out
+        in time order. Uses all tasks if `tasks` is None. Returns a new list; the input is
+        not changed.
         """
         tasks = self.get_all_tasks() if tasks is None else tasks
+
+        def deadline(t: Task) -> datetime | None:
+            return t.due_date or t.start_time
+
         return sorted(
             tasks,
             key=lambda t: (
-                t.due_date is None,
-                t.due_date or datetime.max,
-                -PRIORITY_WEIGHT[t.priority],
-                t.name.lower(),
+                deadline(t) is None,           # undated tasks last
+                deadline(t) or datetime.max,   # earliest first
+                -PRIORITY_WEIGHT[t.priority],  # same deadline: higher priority first
+                t.name.casefold(),             # then alphabetical
             ),
         )
 
@@ -568,11 +665,16 @@ class Scheduler:
         due_date: date | None = None,
         min_weighted_priority: float | None = None,
         tasks: list[Task] | None = None,
+        pet_name: str | None = None,
     ) -> list[Task]:
         """Find tasks matching ALL the criteria given; criteria left as None are ignored.
 
         name/description: partial, case-insensitive. is_completed/priority: exact.
         due_date: due on that calendar day. min_weighted_priority: score at least this.
+        pet_name: the task belongs to a pet whose name contains this (partial,
+        case-insensitive); a shared task matches if ANY of its pets matches.
+        Combine freely, e.g. filter_tasks(pet_name="kiwi", is_completed=False) is
+        "Kiwi's tasks that are still to do".
         Searches all tasks if `tasks` is None. Returns [] if nothing matches.
         """
         tasks = self.get_all_tasks() if tasks is None else tasks
@@ -589,6 +691,10 @@ class Scheduler:
             if due_date is not None and (task.due_date is None or task.due_date.date() != due_date):
                 continue
             if min_weighted_priority is not None and self.weighted_priority(task) < min_weighted_priority:
+                continue
+            if pet_name is not None and not any(
+                pet_name.casefold() in p.name.casefold() for p in self.owner.pets_for_task(task)
+            ):
                 continue
             results.append(task)
         return results
@@ -638,26 +744,46 @@ class Scheduler:
         return candidate if candidate + needed <= end else None
 
     def _plan_slots(self, tasks: list[Task], day: date) -> tuple[list[Task], list[tuple[Task, str]]]:
-        """Time-block tasks for a day. Returns (scheduled copies, [(skipped task, reason)])."""
+        """Time-block tasks for a day. Returns (scheduled copies, [(skipped task, reason)]).
+
+        How priority decides what gets skipped:
+        - Every task is ranked by weighted_priority() (priority + due-date urgency, 0 if done).
+          Ties (same score) go to the earlier due date, then the name A-Z
+          (see sort_by_weighted_priority).
+        - Fixed-time tasks are placed BEFORE any flexible task, whatever their priority, because
+          their time can't move. A low-priority fixed task still beats a high-priority flexible
+          one for that time slot; the flexible one is simply placed around it.
+        - Two fixed tasks that overlap: the higher-ranked one is kept, the other is SKIPPED
+          (not moved to a new time, since a fixed time is usually an appointment).
+        - Flexible tasks never conflict, but they're placed most-urgent first, so when the day
+          runs out of room it's the lowest-ranked flexible tasks that get skipped.
+        """
         window_start, window_end = self._window(day)
+        # Rank once, highest score first; both passes below walk this same order.
         ordered = self.sort_by_weighted_priority(tasks, today=day)
         scheduled: list[Task] = []
         skipped: list[tuple[Task, str]] = []
 
-        # Fixed-time tasks (e.g. a vet visit) go first, highest priority first.
+        # Pass 1: fixed-time tasks (e.g. a vet visit), highest-ranked first.
+        # Because higher-ranked tasks are placed first, any task already in `scheduled`
+        # outranks the current one; so on a clash, the current (lower-ranked) task loses.
         for task in (t for t in ordered if t.start_time is not None):
             clash = next((s for s in scheduled if task.overlaps(s)), None)
             if clash is not None:
+                # Skipped, not rescheduled: the owner decides whether to move or shorten it.
                 skipped.append((
                     task,
                     f"its {task.start_time:%H:%M}-{task.end_time():%H:%M} slot overlaps "
-                    f"higher-priority '{clash.name}' ({clash.start_time:%H:%M}-{clash.end_time():%H:%M}) "
+                    f"'{clash.name}' ({clash.start_time:%H:%M}-{clash.end_time():%H:%M}), which ranks higher, "
                     f"by {task.overlap_minutes(clash)} min",
                 ))
             else:
                 scheduled.append(task)
 
-        # Flexible tasks fill the earliest free gap in the owner's available hours.
+        # Pass 2: flexible tasks, highest-ranked first, each into the earliest free gap within
+        # the owner's available hours (fixed tasks from pass 1 count as busy time). A flexible
+        # task can't clash with anything, so it is only skipped if no gap is long enough.
+        # The plan gets a copy with start_time filled in; the saved task stays flexible.
         for task in (t for t in ordered if t.start_time is None):
             busy = [(s.start_time, s.end_time()) for s in scheduled]
             slot = self._first_fit(busy, window_start, window_end, task.duration_minutes)
@@ -696,33 +822,96 @@ class Scheduler:
         ]
         return self._first_fit(busy, max(after, window_start), window_end, duration_minutes)
 
-    def handle_recurring_tasks(self) -> list[Task]:
-        """For each completed repeating task, add its next occurrence to the same pets.
+    def mark_task_complete(self, task: Task, today: date | None = None) -> Task | None:
+        """Mark a task done and, if it repeats, automatically create its next occurrence.
 
-        Example: completing today's daily walk creates tomorrow's walk for both dogs.
-        Safe to call repeatedly: skips a task whose next occurrence (same name, same next
-        due date/start time) already exists. Returns only the newly created tasks.
+        The next copy is due one period after `today` (see Task.next_occurrence) and is
+        added to the same pets. Returns the new task, or None if the task doesn't repeat
+        (or its next copy already exists). This is the method the app and main.py call
+        when the owner clicks "Done".
         """
-        all_tasks = self.get_all_tasks()
-        created: list[Task] = []
-        for task in all_tasks:
-            if not task.is_completed:
-                continue
-            upcoming = task.next_occurrence()
-            if upcoming is None:
-                continue
-            already_exists = any(
-                t.name == upcoming.name
-                and t.due_date == upcoming.due_date
-                and t.start_time == upcoming.start_time
-                for t in all_tasks + created
-            )
-            if already_exists:
-                continue
-            for pet in self.owner.pets_for_task(task):
-                pet.add_task(upcoming)
-            created.append(upcoming)
+        task.mark_complete()
+        return self._create_next_occurrence(task, today)
+
+    def mark_task_incomplete(self, task: Task) -> Task | None:
+        """Undo mark_task_complete(): the task is open again, and its next copy is removed.
+
+        Works like ticking/unticking a repeating task in a calendar app: ticking creates the
+        next occurrence, unticking takes it back, so tick -> untick leaves things as they were.
+        The next copy is only removed if this task is the LATEST completed copy in its series
+        (so the open copy really is the one it created) and that copy is still open. Unticking
+        an older copy, e.g. Monday when Tuesday is also done, just reopens it and removes
+        nothing. Returns the removed copy, or None.
+        """
+        if not task.is_completed:
+            return None
+        task.edit(is_completed=False)
+        if task.frequency == Frequency.NONE:
+            return None
+        series = self._series(task)
+        # A later copy was also completed, so the open copy was created by that one, not this.
+        if any(t.is_completed and _when(t) > _when(task) for t in series):
+            return None
+        # The open copy AFTER this task is the one that completing it created. (Only look
+        # later: an earlier copy may be open too, e.g. one that was unticked before.)
+        upcoming = next((t for t in series if not t.is_completed and _when(t) > _when(task)), None)
+        if upcoming is None:
+            return None
+        for pet in self.owner.pets_for_task(upcoming):
+            pet.remove_task(upcoming.task_id)
+        return upcoming
+
+    def handle_recurring_tasks(self, today: date | None = None) -> list[Task]:
+        """Catch-up for completed repeating tasks that don't have a next occurrence yet.
+
+        mark_task_complete() already does this for one task; this method checks them all,
+        e.g. for tasks marked done with Task.mark_complete() directly.
+        Safe to call repeatedly. Returns only the newly created tasks.
+        """
+        created = []
+        for task in self.get_all_tasks():
+            if task.is_completed:
+                upcoming = self._create_next_occurrence(task, today)
+                if upcoming is not None:
+                    created.append(upcoming)
         return created
+
+    def _create_next_occurrence(self, task: Task, today: date | None) -> Task | None:
+        """Add `task`'s next occurrence to its pets, unless that would leave two open copies.
+
+        Rule: a repeating task has at most ONE open (not completed) copy at a time. So no
+        new copy is made while an open task with the same name, frequency, and pets exists;
+        that open copy IS the next occurrence. This keeps repeated calls, or old completed
+        copies, from piling up extra tasks.
+        """
+        upcoming = task.next_occurrence(today)
+        if upcoming is None:
+            return None
+        if self._open_copy_in_series(task) is not None:
+            return None
+        if any(other.is_duplicate_of(upcoming) for other in self.get_all_tasks()):
+            return None
+        for pet in self.owner.pets_for_task(task):
+            pet.add_task(upcoming)
+        return upcoming
+
+    def _series(self, task: Task) -> list[Task]:
+        """The other copies of `task`'s repeating series (not including `task` itself).
+
+        Copies of one series share the name (ignoring capitals), the frequency, and the pets.
+        """
+        pet_ids = {p.pet_id for p in self.owner.pets_for_task(task)}
+        return [
+            other for other in self.get_all_tasks()
+            if other.task_id != task.task_id
+            and other.name.strip().casefold() == task.name.strip().casefold()
+            and other.frequency == task.frequency
+            and {p.pet_id for p in self.owner.pets_for_task(other)} == pet_ids
+        ]
+
+    def _open_copy_in_series(self, task: Task) -> Task | None:
+        """The open (not completed) copy of `task`'s repeating series, or None."""
+        return next((t for t in self._series(task) if not t.is_completed), None)
 
     @staticmethod
     def _is_for_day(task: Task, day: date) -> bool:

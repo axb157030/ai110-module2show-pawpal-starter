@@ -32,7 +32,8 @@ classDiagram
         +end_time() datetime
         +overlaps(other: Task) bool
         +overlap_minutes(other: Task) int
-        +next_occurrence() Task
+        +is_duplicate_of(other: Task) bool
+        +next_occurrence(today: date) Task
         +to_dict() dict
         +from_dict(data: dict)$ Task
     }
@@ -48,9 +49,12 @@ classDiagram
         +add_task(task: Task) None
         +list_tasks() list~Task~
         +get_task(task_id: str) Task
+        +find_duplicate_task(task: Task) Task
         +edit_task(task_id: str, **fields) None
         +remove_task(task_id: str) None
         +edit(**fields) None
+        +label() str
+        +is_duplicate_of(other: Pet) bool
         +to_dict() dict
         +from_dict(data: dict, tasks_by_id: dict)$ Pet
     }
@@ -65,6 +69,7 @@ classDiagram
         +edit_pet(pet_id: str, **fields) None
         +remove_pet(pet_id: str) None
         +get_pet(pet_id: str) Pet
+        +find_duplicate_pet(pet: Pet) Pet
         +filter_pets(name, pet_type, age, ailment) list~Pet~
         +get_all_tasks() list~Task~
         +pets_for_task(task: Task) list~Pet~
@@ -80,11 +85,13 @@ classDiagram
         +weighted_priority(task: Task, today: date) float
         +sort_by_weighted_priority(tasks: list~Task~, today: date) list~Task~
         +sort_by_due_date(tasks: list~Task~) list~Task~
-        +filter_tasks(name, description, is_completed, priority, due_date, min_weighted_priority, tasks) list~Task~
+        +filter_tasks(name, description, is_completed, priority, due_date, min_weighted_priority, tasks, pet_name) list~Task~
         +detect_conflicts(tasks: list~Task~) list~tuple~
         +time_block(tasks: list~Task~, day: date) list~Task~
         +next_available_slot(duration_minutes: int, after: datetime) datetime
-        +handle_recurring_tasks() list~Task~
+        +mark_task_complete(task: Task, today: date) Task
+        +mark_task_incomplete(task: Task) Task
+        +handle_recurring_tasks(today: date) list~Task~
         +generate_daily_plan(day: date) DailyPlan
     }
 
@@ -92,7 +99,7 @@ classDiagram
         +date day
         +list~Task~ scheduled_tasks
         +list~Task~ skipped_tasks
-        +dict pet_names_by_task
+        +dict pet_labels_by_task
         +list~str~ reasoning
         +total_minutes() int
         +explain() str

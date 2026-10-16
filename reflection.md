@@ -82,10 +82,10 @@ The frequency attribute is used to let the application know the number of pets i
 
 ---
 
-    - When the main.py file was running, the scheduler when return the daily plan would not show the pet type in addition to pet name and the task. I want to see the scheduled tasks along with the pet name and pet type such as whether it is a dog, hamster, or cat etc. Showing the task and corresponding pet name and type were like what the README.md file from the repository that I forked from to make this application showed. 
+    - When the main.py file was running, the scheduler when return the daily plan would not show the pet type in addition to pet name and the task. I want to see the scheduled tasks along with the pet name and pet type such as whether it is a dog, hamster, or cat etc. Showing the task and corresponding pet name and type were like what the README.md file from the repository that I forked from to make this application, showed. 
     - I evaluated the classes and their methods by running the main.py method that populated an Owner and Scheduler object, made several pets which were assigned a list of several Task objects.
 
-    - There was another moment 
+    - 
 
 ```bash
 pet_names_by_task should I change to pet_names__and_type_by_task. I want to give what type of pet it is like is it a Dog, Cat, Golden Retreiver, texudo cat etcx like 
@@ -117,10 +117,18 @@ Daily plan for 2026-10-15 (150 min scheduled):
 - What behaviors did you test?
 - Why were these tests important?
 
+- I tested that users can add pets, remove them, add, remove, and edit tasks. I tested them when I did not assign them the specific hour to start the test ie have a flexible task and when I explicitly set its exact start date ie a fixed task. I checked that the scheduler detects conflicting tasks when they happen and that the task that conflicts with the lower priority will be skipped in favor of the other task that overallaped it. That tasks can be filtered by pet name, task name. That tasks could be ordered by weighted priority and by due date.
+
+- Why were these tests important? Because it was dealing with the core requirements for the application. Users should be able to make and schedule tasks regarding their pets. They should be able to set the time for them, know tasks that over lap. Know which pets these tasks apply to.
+
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
 - What edge cases would you test next if you had more time?
+
+I rate myself a 6.5 out of 10 with 10 being absolute confidence that the scheduler works corrrectly. The reason is because of my manually testing it. I tested it with the UI, with running a plain Python program. 
+
+I would test tasks that have a frequency of doing them monthly. What happens if I make the same task for a pet with the same name and species for 2 different owners. What if the input fields have values that are too big like a string of a 1000 characters or user somehow inputs negative numbers for the pet age.
 
 ---
 
@@ -130,13 +138,21 @@ Daily plan for 2026-10-15 (150 min scheduled):
 
 - What part of this project are you most satisfied with?
 
+The UI looks good. The scheduler works. Users can see their daily plain and all the tasks they have in order and what pets they apply to.
+
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
 
+The application is complicated. This project was only suppose to take around 4 hours. It took much longer than that. I should focus on simplicity. I should use AI to analyze all the requirements. Along with my notes and questions I asked about the project, I should focus on the most simplest design and code.
+
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+
+AI expedites development. It is good to give very **detailed** prompts. Include requirements, include questions you have. Constantly refactor and it and understand what the AI is doing.  I made pawpal.md file and asked the AI to make the UML diagram from that.
+
+AI may not be the best for a task as the code it makes maybe unnecessarily complex. It reminds of a book I read. First you have dirty code then you make clean code to make clean maintanable code. What AI provides is not a finished product that is necessarily fit for production. 
 
 
 ## 6. Citations and Extra Notes

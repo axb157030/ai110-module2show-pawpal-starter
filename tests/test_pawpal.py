@@ -14,7 +14,7 @@ from datetime import date, datetime, time
 
 import pytest
 
-from pawpal_system import Owner, Pet, Priority, Scheduler, Task
+from pawpal_system import Frequency, Owner, Pet, Priority, Scheduler, Task
 
 # Fixed reference dates so every test is deterministic.
 TODAY = date(2026, 10, 15)
@@ -280,3 +280,353 @@ def test_invalid_edit_is_rejected_and_leaves_task_unchanged():
 
     assert task.name == "Walk"
     assert task.duration_minutes == 30
+
+
+# ---------------------------------------------------------------------------
+# Duplicates: same pet twice, or the same task twice for one pet at one time
+# ---------------------------------------------------------------------------
+
+
+def test_pet_with_same_name_and_species_is_rejected(owner):
+    owner.add_pet(Pet("Biscuit", "dog"))
+
+    # Same name and species, even with different capitals and spacing -> duplicate.
+    with pytest.raises(ValueError):
+        owner.add_pet(Pet(" biscuit ", "DOG"))
+    # Same name but a different species is a different pet, so it's allowed.
+    owner.add_pet(Pet("Biscuit", "cat"))
+
+    assert [p.label() for p in owner.pets] == ["Biscuit (dog)", "Biscuit (cat)"]
+
+
+def test_same_task_name_at_the_same_time_is_rejected_but_other_times_are_allowed():
+    pet = Pet("Luna", "cat")
+    pet.add_task(Task("Feeding", 10, start_time=at(TODAY, 8)))
+    pet.add_task(Task("Brushing", 10, due_date=at(TODAY, 18)))
+
+    # Fixed task: same name, same start time -> duplicate.
+    with pytest.raises(ValueError):
+        pet.add_task(Task("feeding", 10, start_time=at(TODAY, 8)))
+    # Flexible task: same name, due the same day (even at a different hour) -> duplicate.
+    with pytest.raises(ValueError):
+        pet.add_task(Task("Brushing", 10, due_date=at(TODAY, 9)))
+
+    # Same name at another time, or on another day, is a separate task.
+    pet.add_task(Task("Feeding", 10, start_time=at(TODAY, 18)))
+    pet.add_task(Task("Brushing", 10, due_date=at(TOMORROW, 18)))
+
+    assert len(pet.list_tasks()) == 4
+
+
+def test_recurring_task_still_creates_next_day_copy(owner):
+    # Tomorrow's copy has the same name, so it must not be mistaken for a duplicate.
+    pet = Pet("Biscuit", "dog")
+    owner.add_pet(pet)
+    walk = Task("Walk", 30, start_time=at(TODAY, 7), frequency=Frequency.DAILY)
+    pet.add_task(walk)
+    walk.mark_complete()
+
+    created = Scheduler(owner).handle_recurring_tasks(today=TODAY)
+
+    assert [t.start_time for t in created] == [at(TOMORROW, 7)]
+    assert len(pet.list_tasks()) == 2
+
+
+def test_edit_that_would_create_a_duplicate_is_rejected_and_changes_nothing(owner):
+    biscuit, rex = Pet("Biscuit", "dog"), Pet("Rex", "dog")
+    owner.add_pet(biscuit)
+    owner.add_pet(rex)
+    morning = Task("Walk", 30, start_time=at(TODAY, 7))
+    evening = Task("Walk", 30, start_time=at(TODAY, 18))
+    biscuit.add_task(morning)
+    biscuit.add_task(evening)
+
+    # Renaming Rex to "Biscuit" would give the owner two dogs named Biscuit.
+    with pytest.raises(ValueError):
+        owner.edit_pet(rex.pet_id, name="Biscuit")
+    # Moving the evening walk to 07:00 would duplicate the morning walk.
+    with pytest.raises(ValueError):
+        biscuit.edit_task(evening.task_id, start_time=at(TODAY, 7))
+
+    assert rex.name == "Rex"
+    assert evening.start_time == at(TODAY, 18)
+
+
+# ---------------------------------------------------------------------------
+# Ties: same priority AND same due-date bonus -> same score
+#   -> earlier due date first -> then alphabetical
+# ---------------------------------------------------------------------------
+
+
+def test_tied_scores_are_sorted_alphabetically(owner):
+    # All three are high priority and due at the same moment today: 30 + 10 = 40 each,
+    # and the due dates are identical too, so the last tie-break (name A-Z) decides.
+    pet = Pet("Kiwi", "parrot")
+    owner.add_pet(pet)
+    for name in ("Wing trim", "bath", "Feeding"):  # mixed capitals on purpose
+        pet.add_task(Task(name, 15, Priority.HIGH, due_date=at(TODAY, 18)))
+    scheduler = Scheduler(owner)
+
+    ordered = scheduler.sort_by_weighted_priority(today=TODAY)
+
+    assert {scheduler.weighted_priority(t, TODAY) for t in ordered} == {40}
+    assert [t.name for t in ordered] == ["bath", "Feeding", "Wing trim"]
+
+
+def test_tied_fixed_tasks_that_clash_keep_the_alphabetically_first(owner):
+    # Same score and same due date (high, due 18:00 today). Wing trim STARTS earlier, but
+    # start time isn't a tie-break, so Bath wins by name.
+    pet = Pet("Kiwi", "parrot")
+    owner.add_pet(pet)
+    wing_trim = Task("Wing trim", 30, Priority.HIGH, due_date=at(TODAY, 18), start_time=at(TODAY, 10, 15))
+    bath = Task("Bath", 30, Priority.HIGH, due_date=at(TODAY, 18), start_time=at(TODAY, 10, 30))
+    pet.add_task(wing_trim)
+    pet.add_task(bath)
+
+    plan = Scheduler(owner).generate_daily_plan(TODAY)
+
+    assert plan.scheduled_tasks == [bath]
+    assert plan.skipped_tasks == [wing_trim]
+    assert any("Wing trim: skipped" in r and "'Bath'" in r and "ranks higher" in r for r in plan.reasoning)
+
+
+def test_tied_flexible_tasks_go_to_the_earlier_due_date_before_the_alphabet():
+    # Only 30 free minutes; two 30-minute medium tasks, both in the "+10" band (20 + 10 = 30):
+    # Zoomies is OVERDUE (due yesterday), Brushing is due today. Same score, so the earlier
+    # due date wins: Zoomies gets the slot even though "Brushing" comes first alphabetically.
+    owner = Owner("Sam", available_start=time(8), available_end=time(8, 30))
+    pet = Pet("Biscuit", "dog")
+    owner.add_pet(pet)
+    zoomies = Task("Zoomies", 30, Priority.MEDIUM, due_date=at(date(2026, 10, 14), 18))
+    brushing = Task("Brushing", 30, Priority.MEDIUM, due_date=at(TODAY, 18))
+    pet.add_task(zoomies)
+    pet.add_task(brushing)
+    scheduler = Scheduler(owner)
+
+    plan = scheduler.generate_daily_plan(TODAY)
+
+    assert scheduler.weighted_priority(zoomies, TODAY) == scheduler.weighted_priority(brushing, TODAY) == 30
+    assert [t.name for t in plan.scheduled_tasks] == ["Zoomies"]
+    assert plan.skipped_tasks == [brushing]
+
+
+# ---------------------------------------------------------------------------
+# Recurring tasks: marking a daily/weekly task done creates the next one
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def biscuit_with_owner(owner):
+    """Owner with one dog, Biscuit, and no tasks yet."""
+    biscuit = Pet("Biscuit", "dog")
+    owner.add_pet(biscuit)
+    return owner, biscuit
+
+
+def test_completing_daily_task_creates_one_for_today_plus_one_day(biscuit_with_owner):
+    owner, biscuit = biscuit_with_owner
+    feeding = Task("Feeding", 10, start_time=at(TODAY, 8), frequency=Frequency.DAILY)
+    biscuit.add_task(feeding)
+
+    upcoming = Scheduler(owner).mark_task_complete(feeding, today=TODAY)
+
+    assert feeding.is_completed is True
+    assert upcoming.start_time == at(TOMORROW, 8)  # same time of day, today + 1 day
+    assert upcoming.is_completed is False
+    assert upcoming.task_id != feeding.task_id     # a new, separate task
+    assert biscuit.list_tasks() == [feeding, upcoming]
+
+
+def test_completing_weekly_task_creates_one_for_today_plus_seven_days(biscuit_with_owner):
+    owner, biscuit = biscuit_with_owner
+    bath = Task("Bath", 30, due_date=at(TODAY, 18), frequency=Frequency.WEEKLY)
+    biscuit.add_task(bath)
+
+    upcoming = Scheduler(owner).mark_task_complete(bath, today=TODAY)
+
+    assert upcoming.due_date == at(date(2026, 10, 22), 18)
+
+
+def test_late_daily_task_comes_back_tomorrow_not_on_a_past_date(biscuit_with_owner):
+    # Due Oct 10 but only done on Oct 15: the next one is Oct 16 (today + 1), not Oct 11.
+    owner, biscuit = biscuit_with_owner
+    meds = Task("Meds", 5, due_date=at(date(2026, 10, 10), 9), frequency=Frequency.DAILY)
+    biscuit.add_task(meds)
+
+    upcoming = Scheduler(owner).mark_task_complete(meds, today=TODAY)
+
+    assert upcoming.due_date == at(TOMORROW, 9)
+
+
+def test_daily_task_rolls_over_the_end_of_the_month(biscuit_with_owner):
+    # timedelta(days=1) handles month ends: Oct 31 + 1 day = Nov 1.
+    owner, biscuit = biscuit_with_owner
+    walk = Task("Walk", 30, start_time=at(date(2026, 10, 31), 7), frequency=Frequency.DAILY)
+    biscuit.add_task(walk)
+
+    upcoming = Scheduler(owner).mark_task_complete(walk, today=date(2026, 10, 31))
+
+    assert upcoming.start_time == at(date(2026, 11, 1), 7)
+
+
+def test_non_repeating_task_creates_nothing(biscuit_with_owner):
+    owner, biscuit = biscuit_with_owner
+    vet = Task("Vet visit", 45, start_time=at(TODAY, 10))  # frequency defaults to NONE
+    biscuit.add_task(vet)
+
+    assert Scheduler(owner).mark_task_complete(vet, today=TODAY) is None
+    assert biscuit.list_tasks() == [vet]
+
+
+def test_shared_daily_task_gets_one_next_copy_for_both_pets(owner):
+    biscuit, rex = Pet("Biscuit", "dog"), Pet("Rex", "dog")
+    owner.add_pet(biscuit)
+    owner.add_pet(rex)
+    walk = Task("Walk", 30, start_time=at(TODAY, 7), frequency=Frequency.DAILY)
+    biscuit.add_task(walk)
+    rex.add_task(walk)
+
+    upcoming = Scheduler(owner).mark_task_complete(walk, today=TODAY)
+
+    assert owner.pets_for_task(upcoming) == [biscuit, rex]
+    assert len(owner.get_all_tasks()) == 2  # today's walk + one shared walk tomorrow
+
+
+def test_recurring_never_leaves_two_open_copies(biscuit_with_owner):
+    owner, biscuit = biscuit_with_owner
+    scheduler = Scheduler(owner)
+    feeding = Task("Feeding", 10, start_time=at(TODAY, 8), frequency=Frequency.DAILY)
+    biscuit.add_task(feeding)
+    scheduler.mark_task_complete(feeding, today=TODAY)
+
+    # Catch-up runs on later days, while tomorrow's copy is still not done: nothing new.
+    assert scheduler.handle_recurring_tasks(today=TODAY) == []
+    assert scheduler.handle_recurring_tasks(today=date(2026, 10, 20)) == []
+    assert [t.is_completed for t in biscuit.list_tasks()] == [True, False]
+
+
+# ---------------------------------------------------------------------------
+# Tick / untick like a calendar: unticking takes back the copy ticking created
+# ---------------------------------------------------------------------------
+
+
+def test_untick_reopens_task_and_removes_the_next_copy(biscuit_with_owner):
+    owner, biscuit = biscuit_with_owner
+    scheduler = Scheduler(owner)
+    feeding = Task("Feeding", 10, start_time=at(TODAY, 8), frequency=Frequency.DAILY)
+    biscuit.add_task(feeding)
+    upcoming = scheduler.mark_task_complete(feeding, today=TODAY)
+
+    removed = scheduler.mark_task_incomplete(feeding)
+
+    assert removed is upcoming
+    assert feeding.is_completed is False
+    assert biscuit.list_tasks() == [feeding]  # back to exactly how it started
+
+
+def test_tick_untick_tick_never_piles_up_copies(biscuit_with_owner):
+    owner, biscuit = biscuit_with_owner
+    scheduler = Scheduler(owner)
+    feeding = Task("Feeding", 10, start_time=at(TODAY, 8), frequency=Frequency.DAILY)
+    biscuit.add_task(feeding)
+
+    for _ in range(3):  # click the checkbox on and off three times
+        scheduler.mark_task_complete(feeding, today=TODAY)
+        scheduler.mark_task_incomplete(feeding)
+    scheduler.mark_task_complete(feeding, today=TODAY)
+
+    # Same result as a single tick: today's done, one copy for tomorrow.
+    assert [(t.start_time, t.is_completed) for t in biscuit.list_tasks()] == [
+        (at(TODAY, 8), True),
+        (at(TOMORROW, 8), False),
+    ]
+
+
+def test_untick_only_takes_back_the_copy_this_task_created(biscuit_with_owner):
+    # Monday done -> Tuesday created; Tuesday done -> Wednesday created.
+    owner, biscuit = biscuit_with_owner
+    scheduler = Scheduler(owner)
+    monday = Task("Walk", 30, start_time=at(TODAY, 7), frequency=Frequency.DAILY)
+    biscuit.add_task(monday)
+    tuesday = scheduler.mark_task_complete(monday, today=TODAY)
+    wednesday = scheduler.mark_task_complete(tuesday, today=TOMORROW)
+
+    removed = scheduler.mark_task_incomplete(monday)
+
+    # Wednesday was created by ticking Tuesday, not Monday, so unticking Monday only
+    # reopens Monday: Tuesday stays done and Wednesday stays.
+    assert removed is None
+    assert monday.is_completed is False
+    assert tuesday.is_completed is True
+    assert biscuit.list_tasks() == [monday, tuesday, wednesday]
+
+    # Unticking Tuesday (the latest done copy) does take Wednesday back.
+    assert scheduler.mark_task_incomplete(tuesday) is wednesday
+    assert biscuit.list_tasks() == [monday, tuesday]
+
+
+def test_untick_non_repeating_task_just_reopens_it(biscuit_with_owner):
+    owner, biscuit = biscuit_with_owner
+    scheduler = Scheduler(owner)
+    vet = Task("Vet visit", 45, start_time=at(TODAY, 10))
+    biscuit.add_task(vet)
+    scheduler.mark_task_complete(vet, today=TODAY)
+
+    assert scheduler.mark_task_incomplete(vet) is None
+    assert vet.is_completed is False
+    assert biscuit.list_tasks() == [vet]
+
+
+# ---------------------------------------------------------------------------
+# Filtering by pet name / completion, and sorting tasks added out of order
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def two_pets_with_tasks(owner):
+    """Biscuit (dog) and Kiwi (parrot) with tasks added out of time order; one is done."""
+    biscuit, kiwi = Pet("Biscuit", "dog"), Pet("Kiwi", "parrot")
+    owner.add_pet(biscuit)
+    owner.add_pet(kiwi)
+    tasks = {
+        "bath": Task("Bath", 30, due_date=at(TOMORROW, 9)),
+        "trim": Task("Wing trim", 30, start_time=at(TODAY, 10, 30)),   # fixed, no due date
+        "water": Task("Water", 5, due_date=at(TODAY, 9)),              # shared by both pets
+        "walk": Task("Walk", 30, start_time=at(TODAY, 7), is_completed=True),
+    }
+    biscuit.add_task(tasks["bath"])
+    kiwi.add_task(tasks["trim"])
+    biscuit.add_task(tasks["water"])
+    kiwi.add_task(tasks["water"])
+    biscuit.add_task(tasks["walk"])
+    return Scheduler(owner), tasks
+
+
+def test_filter_by_pet_name_is_partial_and_case_insensitive(two_pets_with_tasks):
+    scheduler, t = two_pets_with_tasks
+
+    # "KI" matches Kiwi; the shared water task matches because Kiwi is one of its pets.
+    # Results keep get_all_tasks() order (pet by pet: Biscuit first, so water comes before trim).
+    assert scheduler.filter_tasks(pet_name="KI") == [t["water"], t["trim"]]
+    assert scheduler.filter_tasks(pet_name="nobody") == []
+
+
+def test_filter_by_completion_status(two_pets_with_tasks):
+    scheduler, t = two_pets_with_tasks
+
+    assert scheduler.filter_tasks(is_completed=True) == [t["walk"]]
+    assert set(map(id, scheduler.filter_tasks(is_completed=False))) == {id(t["bath"]), id(t["trim"]), id(t["water"])}
+
+
+def test_filter_by_pet_name_and_completion_combined(two_pets_with_tasks):
+    scheduler, t = two_pets_with_tasks
+
+    # Biscuit has bath, water, and the completed walk; only the first two are still to do.
+    assert scheduler.filter_tasks(pet_name="biscuit", is_completed=False) == [t["bath"], t["water"]]
+
+
+def test_sort_by_due_date_orders_tasks_added_out_of_order(two_pets_with_tasks):
+    scheduler, t = two_pets_with_tasks
+
+    # The fixed wing trim has no due date, so its start time (10:30) counts as its deadline.
+    assert scheduler.sort_by_due_date() == [t["walk"], t["water"], t["trim"], t["bath"]]

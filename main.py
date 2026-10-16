@@ -52,19 +52,36 @@ bath = Task(
     start_time=at(9, days_from_today=2), frequency=Frequency.WEEKLY,
 )
 
-biscuit.add_task(morning_walk)
-rex.add_task(morning_walk)
+# Added deliberately OUT of time order, to show that sorting puts them back in order.
+biscuit.add_task(bath)           # in 2 days, 09:00
+kiwi.add_task(wing_trim)         # today 10:30
+kiwi.add_task(buy_feed)          # due in 7 days
 for pet in (biscuit, rex, kiwi):
-    pet.add_task(fill_water)
-kiwi.add_task(buy_feed)
-kiwi.add_task(vet_visit)
-kiwi.add_task(wing_trim)
-biscuit.add_task(bath)
+    pet.add_task(fill_water)     # due today 09:00
+kiwi.add_task(vet_visit)         # today 10:00
+biscuit.add_task(morning_walk)   # today 07:00
+rex.add_task(morning_walk)
 
 scheduler = Scheduler(owner)
 
+
+def show(title: str, tasks: list[Task]) -> None:
+    """Print a titled list of tasks: when, name, status, and pets."""
+    print(f"\n=== {title} ===")
+    if not tasks:
+        print("  (none)")
+    for task in tasks:
+        when = task.due_date or task.start_time
+        status = "done" if task.is_completed else "to do"
+        pets = ", ".join(p.name for p in owner.pets_for_task(task))
+        print(f"  {when:%a %b %d %H:%M}  {task.name:<24} [{status:<5}]  {pets}")
+
+
+show("Unsorted (as stored: pet by pet, not in time order)", owner.get_all_tasks())
+show("Sorted by due date (earliest first)", scheduler.sort_by_due_date())
+
 # --- Today's schedule ---
-print("=== Today's Schedule ===")
+print("\n=== Today's Schedule ===")
 print(scheduler.generate_daily_plan(today).explain())
 
 # --- Other scheduler features ---
@@ -91,6 +108,15 @@ slot = scheduler.next_available_slot(30, at(8))
 print(f"  {slot:%H:%M}" if slot else "  none today")
 
 print("\n=== Recurring tasks ===")
-morning_walk.mark_complete()
-for task in scheduler.handle_recurring_tasks():
-    print(f"  Completed '{task.name}', next one created for {task.start_time or task.due_date:%Y-%m-%d %H:%M}")
+# Marking a daily task done automatically creates the next one: today + 1 day (timedelta).
+next_walk = scheduler.mark_task_complete(morning_walk, today=today)
+if next_walk:
+    print(f"  Completed '{morning_walk.name}', next one created for {next_walk.start_time:%Y-%m-%d %H:%M}")
+scheduler.mark_task_complete(vet_visit, today=today)  # one more done, so the filters have something to show
+
+# --- Filtering: by completion status, by pet name, and both combined ---
+show("Filter: completed tasks", scheduler.filter_tasks(is_completed=True))
+show("Filter: tasks still to do, sorted by due date",
+     scheduler.sort_by_due_date(scheduler.filter_tasks(is_completed=False)))
+show("Filter: Kiwi's tasks", scheduler.filter_tasks(pet_name="Kiwi"))
+show("Filter: Biscuit's tasks still to do", scheduler.filter_tasks(pet_name="biscuit", is_completed=False))
