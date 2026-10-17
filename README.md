@@ -60,13 +60,8 @@ pip install -r requirements.txt
 
 Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
 
-```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
-```
+- <img src="./assets/schedule/daily_plan_with_one_conflicting_task_skipped.png" alt="Shows daily plan with one skipped task in favor of another to take its place as it overlaps that over task"/>
+
 
 ## 🧪 Testing PawPal+
 
@@ -231,5 +226,81 @@ Describe your app in numbered steps so a reader can follow along without watchin
 - <img src="./assets/save_button.png" alt="save button to save progress to special JSON file to persist the data between application restarts">
 
 5. `python main.py` Can also run to test some methods of this program without UI.
+
+ - main.py output. It shows CLI output of sorting tasks by due date and weighted priority among other things.
+
+```bash
+
+=== Unsorted (as stored: pet by pet, not in time order) ===
+  Sun Oct 18 09:00  Bath                     [to do]  Biscuit
+  Fri Oct 16 09:00  Fill bowl of pure water  [to do]  Biscuit, Rex, Kiwi
+  Fri Oct 16 07:00  Morning walk             [to do]  Biscuit, Rex
+  Fri Oct 16 10:30  Wing trim                [to do]  Kiwi
+  Fri Oct 23 18:00  Buy parrot feed          [to do]  Kiwi
+  Fri Oct 16 10:00  Vet checkup              [to do]  Kiwi
+
+=== Sorted by due date (earliest first) ===
+  Fri Oct 16 07:00  Morning walk             [to do]  Biscuit, Rex
+  Fri Oct 16 09:00  Fill bowl of pure water  [to do]  Biscuit, Rex, Kiwi
+  Fri Oct 16 10:00  Vet checkup              [to do]  Kiwi
+  Fri Oct 16 10:30  Wing trim                [to do]  Kiwi
+  Sun Oct 18 09:00  Bath                     [to do]  Biscuit
+  Fri Oct 23 18:00  Buy parrot feed          [to do]  Kiwi
+
+=== Today's Schedule ===
+Daily plan for 2026-10-16 (150 min scheduled):
+  07:00 — Morning walk (90 min) [priority: low] — Biscuit (dog), Rex (dog)
+  08:30 — Fill bowl of pure water (15 min) [priority: high] — Biscuit (dog), Rex (dog), Kiwi (parrot)
+  10:00 — Vet checkup (45 min) [priority: high] — Kiwi (parrot)
+Skipped:
+  Wing trim (30 min) — Kiwi (parrot)
+Why:
+  - Available 07:00–21:00; 4 task(s) to do, ordered by weighted priority.
+  - Morning walk: fixed time, kept at 07:00 (score 10).
+  - Fill bowl of pure water: placed in the earliest free slot (score 40).
+  - Vet checkup: fixed time, kept at 10:00 (score 30).
+  - Wing trim: skipped — its 10:30-11:00 slot overlaps 'Vet checkup' (10:00-10:45), which ranks higher, by 15 min.
+
+=== All tasks by weighted priority (across all pets) ===
+    40  Fill bowl of pure water — Biscuit (dog), Rex (dog), Kiwi (parrot)
+    30  Vet checkup — Kiwi (parrot)
+    20  Buy parrot feed — Kiwi (parrot)
+    20  Bath — Biscuit (dog)
+    10  Morning walk — Biscuit (dog), Rex (dog)
+    10  Wing trim — Kiwi (parrot)
+
+=== Conflicts ===
+  Vet checkup: 10:00-10:45 (45 min)
+  Wing trim: 10:30-11:00 (30 min)
+  -> Wing trim starts at 10:30, before Vet checkup ends at 10:45: they overlap by 15 min
+
+=== Next available 30-minute slot after 08:00 ===
+  08:30
+
+=== Recurring tasks ===
+  Completed 'Morning walk', next one created for 2026-10-17 07:00
+
+=== Filter: completed tasks ===
+  Fri Oct 16 07:00  Morning walk             [done ]  Biscuit, Rex
+  Fri Oct 16 10:00  Vet checkup              [done ]  Kiwi
+
+=== Filter: tasks still to do, sorted by due date ===
+  Fri Oct 16 09:00  Fill bowl of pure water  [to do]  Biscuit, Rex, Kiwi
+  Fri Oct 16 10:30  Wing trim                [to do]  Kiwi
+  Sat Oct 17 07:00  Morning walk             [to do]  Biscuit, Rex
+  Sun Oct 18 09:00  Bath                     [to do]  Biscuit
+  Fri Oct 23 18:00  Buy parrot feed          [to do]  Kiwi
+
+=== Filter: Kiwi's tasks ===
+  Fri Oct 16 09:00  Fill bowl of pure water  [to do]  Biscuit, Rex, Kiwi
+  Fri Oct 16 10:30  Wing trim                [to do]  Kiwi
+  Fri Oct 23 18:00  Buy parrot feed          [to do]  Kiwi
+  Fri Oct 16 10:00  Vet checkup              [done ]  Kiwi
+
+=== Filter: Biscuit's tasks still to do ===
+  Sun Oct 18 09:00  Bath                     [to do]  Biscuit
+  Fri Oct 16 09:00  Fill bowl of pure water  [to do]  Biscuit, Rex, Kiwi
+  Sat Oct 17 07:00  Morning walk             [to do]  Biscuit, Rex
+    ```
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
