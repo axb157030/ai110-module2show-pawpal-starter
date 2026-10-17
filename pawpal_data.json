@@ -1,0 +1,130 @@
+{
+  "name": "Jordan",
+  "available_start": "08:00:00",
+  "available_end": "20:00:00",
+  "preferences": {},
+  "tasks": [
+    {
+      "task_id": "1e37d363a63845e18415221fc61cdd7e",
+      "name": "Pet Party",
+      "description": "A fun party. A lot of treats for cats and dogs. ",
+      "priority": "medium",
+      "duration_minutes": 240,
+      "due_date": "2026-10-22T23:59:00",
+      "start_time": "2026-10-22T13:00:00",
+      "is_completed": false,
+      "frequency": "daily"
+    },
+    {
+      "task_id": "7b15d7d9b2194957add632f8b2ae4313",
+      "name": "Feed",
+      "description": "Get top notch  food",
+      "priority": "high",
+      "duration_minutes": 15,
+      "due_date": "2026-10-16T23:59:00",
+      "start_time": null,
+      "is_completed": false,
+      "frequency": "daily"
+    },
+    {
+      "task_id": "b98e8f97753f44a19f2c0669c1bee84a",
+      "name": "Give drink",
+      "description": "",
+      "priority": "high",
+      "duration_minutes": 15,
+      "due_date": "2026-10-16T23:59:00",
+      "start_time": null,
+      "is_completed": false,
+      "frequency": "daily"
+    },
+    {
+      "task_id": "9cfee3697ff144ab8c9292ccccb1cffa",
+      "name": "Bath",
+      "description": "",
+      "priority": "medium",
+      "duration_minutes": 30,
+      "due_date": "2026-10-17T23:59:00",
+      "start_time": "2026-10-17T11:00:00",
+      "is_completed": false,
+      "frequency": "none"
+    },
+    {
+      "task_id": "f28f90cdc20b42bdb8056e98efa752c0",
+      "name": "check",
+      "description": "",
+      "priority": "medium",
+      "duration_minutes": 15,
+      "due_date": "2026-10-14T23:59:00",
+      "start_time": null,
+      "is_completed": false,
+      "frequency": "daily"
+    },
+    {
+      "task_id": "1c697b1258d341fb8886d4d685e9f4b5",
+      "name": "Go to vet",
+      "description": "",
+      "priority": "high",
+      "duration_minutes": 240,
+      "due_date": "2026-10-22T23:59:00",
+      "start_time": "2026-10-22T14:30:00",
+      "is_completed": false,
+      "frequency": "none"
+    },
+    {
+      "task_id": "d6111b4aa7e2449b80466e11f1a8ce00",
+      "name": "Provide it an automatic feeder",
+      "description": "",
+      "priority": "medium",
+      "duration_minutes": 240,
+      "due_date": "2026-10-24T23:59:00",
+      "start_time": null,
+      "is_completed": false,
+      "frequency": "none"
+    }
+  ],
+  "pets": [
+    {
+      "pet_id": "1c4c35cd259843dbbc23bc5c4b9b9eb4",
+      "name": "Cupcake",
+      "pet_type": "cat",
+      "age": 2,
+      "description": "Lusterous White Silky",
+      "ailments": [],
+      "task_ids": [
+        "1e37d363a63845e18415221fc61cdd7e",
+        "7b15d7d9b2194957add632f8b2ae4313",
+        "b98e8f97753f44a19f2c0669c1bee84a",
+        "9cfee3697ff144ab8c9292ccccb1cffa",
+        "f28f90cdc20b42bdb8056e98efa752c0"
+      ]
+    },
+    {
+      "pet_id": "8bd025d397dd40a8b92ca0b7fc3d04f8",
+      "name": "Mochi",
+      "pet_type": "dog",
+      "age": 3,
+      "description": "Golden Retreiver",
+      "ailments": [],
+      "task_ids": [
+        "1c697b1258d341fb8886d4d685e9f4b5",
+        "1e37d363a63845e18415221fc61cdd7e",
+        "7b15d7d9b2194957add632f8b2ae4313",
+        "b98e8f97753f44a19f2c0669c1bee84a",
+        "f28f90cdc20b42bdb8056e98efa752c0"
+      ]
+    },
+    {
+      "pet_id": "45a1429ad90a48079f602baf18b14cbc",
+      "name": "Wobby",
+      "pet_type": "rabbit",
+      "age": 20,
+      "description": "Its a domesticated European rabbit",
+      "ailments": [
+        "Brittle bones"
+      ],
+      "task_ids": [
+        "d6111b4aa7e2449b80466e11f1a8ce00"
+      ]
+    }
+  ]
+}

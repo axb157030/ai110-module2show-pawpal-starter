@@ -93,18 +93,63 @@ Add `-v` to see the name of every test. All tests use fixed dates, so they give 
 Output of a successful run:
 
 ```
-============================= test session starts =============================
-platform win32 -- Python 3.14.6, pytest-9.1.1, pluggy-1.7.0
-rootdir: C:\Users\amine\Documents\codepath-training\AI\projects\ai110-module2show-pawpal-starter
 configfile: pytest.ini
 testpaths: tests
 plugins: anyio-4.15.1
-collected 52 items
+collected 52 items                                                                                                   
 
-tests\test_pawpal.py ................................................... [ 98%]
-.                                                                        [100%]
-
-============================= 52 passed in 0.11s ==============================
+tests/test_pawpal.py::test_mark_complete_changes_status PASSED                                                 [  1%]
+tests/test_pawpal.py::test_add_task_increases_pet_task_count PASSED                                            [  3%]
+tests/test_pawpal.py::test_shared_task_belongs_to_both_pets_but_is_listed_once PASSED                          [  5%]
+tests/test_pawpal.py::test_shared_task_is_not_a_conflict_and_is_scheduled_once PASSED                          [  7%]
+tests/test_pawpal.py::test_overlapping_tasks_of_different_pets_are_detected PASSED                             [  9%]
+tests/test_pawpal.py::test_daily_plan_keeps_higher_priority_task_when_pets_tasks_clash PASSED                  [ 11%]
+tests/test_pawpal.py::test_same_due_date_with_separate_or_back_to_back_windows_is_not_a_conflict PASSED        [ 13%]
+tests/test_pawpal.py::test_owner_with_no_pets_gives_empty_results_not_errors PASSED                            [ 15%]
+tests/test_pawpal.py::test_pets_with_no_tasks_leave_the_whole_day_free PASSED                                  [ 17%]
+tests/test_pawpal.py::test_task_with_only_a_name_is_rejected PASSED                                            [ 19%]
+tests/test_pawpal.py::test_invalid_task_values_are_rejected[number as a task name] PASSED                      [ 21%]
+tests/test_pawpal.py::test_invalid_task_values_are_rejected[blank name] PASSED                                 [ 23%]
+tests/test_pawpal.py::test_invalid_task_values_are_rejected[non-numeric string] PASSED                         [ 25%]
+tests/test_pawpal.py::test_invalid_task_values_are_rejected[numeric string is still text] PASSED               [ 26%]
+tests/test_pawpal.py::test_invalid_task_values_are_rejected[a task must take some time] PASSED                 [ 28%]
+tests/test_pawpal.py::test_invalid_task_values_are_rejected[bool is not a duration] PASSED                     [ 30%]
+tests/test_pawpal.py::test_invalid_task_values_are_rejected[must be Priority.HIGH] PASSED                      [ 32%]
+tests/test_pawpal.py::test_invalid_task_values_are_rejected[bool instead of a Frequency] PASSED                [ 34%]
+tests/test_pawpal.py::test_invalid_task_values_are_rejected[bool instead of a datetime] PASSED                 [ 36%]
+tests/test_pawpal.py::test_invalid_task_values_are_rejected[text instead of a datetime] PASSED                 [ 38%]
+tests/test_pawpal.py::test_invalid_task_values_are_rejected[date without a time of day] PASSED                 [ 40%]
+tests/test_pawpal.py::test_invalid_task_values_are_rejected[text instead of True/False] PASSED                 [ 42%]
+tests/test_pawpal.py::test_invalid_pet_values_are_rejected[number as a pet name] PASSED                        [ 44%]
+tests/test_pawpal.py::test_invalid_pet_values_are_rejected[empty name] PASSED                                  [ 46%]
+tests/test_pawpal.py::test_invalid_pet_values_are_rejected[number as a pet type] PASSED                        [ 48%]
+tests/test_pawpal.py::test_invalid_pet_values_are_rejected[non-numeric string] PASSED                          [ 50%]
+tests/test_pawpal.py::test_invalid_pet_values_are_rejected[negative age] PASSED                                [ 51%]
+tests/test_pawpal.py::test_invalid_pet_values_are_rejected[a single string, not a list] PASSED                 [ 53%]
+tests/test_pawpal.py::test_invalid_owner_and_scheduler_values_are_rejected PASSED                              [ 55%]
+tests/test_pawpal.py::test_invalid_edit_is_rejected_and_leaves_task_unchanged PASSED                           [ 57%]
+tests/test_pawpal.py::test_pet_with_same_name_and_species_is_rejected PASSED                                   [ 59%]
+tests/test_pawpal.py::test_same_task_name_at_the_same_time_is_rejected_but_other_times_are_allowed PASSED      [ 61%]
+tests/test_pawpal.py::test_recurring_task_still_creates_next_day_copy PASSED                                   [ 63%]
+tests/test_pawpal.py::test_edit_that_would_create_a_duplicate_is_rejected_and_changes_nothing PASSED           [ 65%]
+tests/test_pawpal.py::test_tied_scores_are_sorted_alphabetically PASSED                                        [ 67%]
+tests/test_pawpal.py::test_tied_fixed_tasks_that_clash_keep_the_alphabetically_first PASSED                    [ 69%]
+tests/test_pawpal.py::test_tied_flexible_tasks_go_to_the_earlier_due_date_before_the_alphabet PASSED           [ 71%]
+tests/test_pawpal.py::test_completing_daily_task_creates_one_for_today_plus_one_day PASSED                     [ 73%]
+tests/test_pawpal.py::test_completing_weekly_task_creates_one_for_today_plus_seven_days PASSED                 [ 75%]
+tests/test_pawpal.py::test_late_daily_task_comes_back_tomorrow_not_on_a_past_date PASSED                       [ 76%]
+tests/test_pawpal.py::test_daily_task_rolls_over_the_end_of_the_month PASSED                                   [ 78%]
+tests/test_pawpal.py::test_non_repeating_task_creates_nothing PASSED                                           [ 80%]
+tests/test_pawpal.py::test_shared_daily_task_gets_one_next_copy_for_both_pets PASSED                           [ 82%]
+tests/test_pawpal.py::test_recurring_never_leaves_two_open_copies PASSED                                       [ 84%]
+tests/test_pawpal.py::test_untick_reopens_task_and_removes_the_next_copy PASSED                                [ 86%]
+tests/test_pawpal.py::test_tick_untick_tick_never_piles_up_copies PASSED                                       [ 88%]
+tests/test_pawpal.py::test_untick_only_takes_back_the_copy_this_task_created PASSED                            [ 90%]
+tests/test_pawpal.py::test_untick_non_repeating_task_just_reopens_it PASSED                                    [ 92%]
+tests/test_pawpal.py::test_filter_by_pet_name_is_partial_and_case_insensitive PASSED                           [ 94%]
+tests/test_pawpal.py::test_filter_by_completion_status PASSED                                                  [ 96%]
+tests/test_pawpal.py::test_filter_by_pet_name_and_completion_combined PASSED                                   [ 98%]
+tests/test_pawpal.py::test_sort_by_due_date_orders_tasks_added_out_of_order PASSED                             [100%]
 ```
 
 **Confidence Level: (4/5)**
@@ -129,13 +174,62 @@ All 52 tests pass, covering the core scheduling behaviors, multi-pet cases, and 
 
 ## 📸 Demo Walkthrough
 
+#### When running it please pick dates that are from present day and later and you may have to click somewhere else after inputting a value for it to update in the UI
+
 Describe your app in numbered steps so a reader can follow along without watching a video:
 
+1. Install dependencies
+    - #### BASH/ZSH commands for macOS, Git Bash on Windows, or WSL
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python -m pip install --upgrade pip
+    pip install -r requirements.txt
+    ```
 
-1. Add a pet <img src="./assets/add_pet_1.png" alt="UI showing adding a white cat"/>
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+    - #### For Windows -- PowerShell
+    ```bash
+    python -m venv .venv
+    .\.venv\Scripts\Activate.ps1
+    python -m pip install --upgrade pip
+    pip install -r requirements.txt
+    ```
+2. Run `streamlit run app.py` on a terminal and go connect to the corresponding local URL such as `http://localhost:8501`
+3. Add at least a couple pets
+- Add a pet <img src="./assets/pets/add_pet_1.png" alt="UI showing adding a white cat"/>
+- Add another pet <img src="./assets/pets/add_pet_2.png" alt="UI showing adding a dog"/>
+
+4. Add at least 3 tasks.
+    - If you check the Fixed start time check mark, the start time of the tasks will not be automatically set for this class. You will have to set it and that can result in some time conflicts reported. The Scheduler of course skips the less important task when there is a conflicting task, when setting the daily plain for the day.
+
+    - <img src="./assets/tasks/walk_task.png" alt="Adding a task of walking a dog with no specific time during the day that it will start. The task reoccurs daily" />
+
+    - I added more tasks include one that will will conflict with another. They are sorted by weighted priority by default
+
+    - <img src="./assets/tasks/list_of_tasks_sorted_by_weighted_priority.png" alt="Lists of tasks, with a couple that have conflicting times and are sorted by weighted priority"/>
+
+     - Users can sort by weighted priority or due date. In the sort panel that I will show you below, users can also filter by task name and pet name.
+
+     - <img src="./assets/sort_panel.png" alt="Picture showing panel that allows users to sort tasks by weighted priority and due date as well as filter by priority, task name, and pet name"/>
+
+
+
+3. Under Build Schedule header, set date of the day you want to have a schedule for.
+
+- <img src="./assets/schedule/daily_plan_with_one_conflicting_task_skipped.png" alt="Shows daily plan with one skipped task in favor of another to take its place as it overlaps that over task"/>
+
+- When clicking on done check mark under the list of tasks for daily reoccurring task. They will not appear in the daily plan on the first date they were schedule but will appear in daily plans the next day after that.
+
+- <img src="./assets/tasks/one_daily_task_marked_as_done.png" alt="The Give drink task among the list of tasks in the table shown is marked as done."/>
+
+- <img src="./assets/schedule/daily_plan_with_one_done_daily_task_correctly_not_showing_for_that_day_and_so_not_showing.png" alt="Drink daily task that starts at 10/16 and marked as complete correctly not showing up in daily plain"/>
+
+- <img src="./assets/schedule/daily_plan_showing_completed_task_is_scheduled_for_next_day.png" alt="Drink daily task that was set as complete showing up in schedule for the enxt day"/>
+
+4. Please click the Save to file button to ensure your progress is saved between restarting the application at the bottom of the UI. Progress is saved to `pawpal_data.json`
+
+- <img src="./assets/save_button.png" alt="save button to save progress to special JSON file to persist the data between application restarts">
+
+5. `python main.py` Can also run to test some methods of this program without UI.
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
